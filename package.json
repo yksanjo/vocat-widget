@@ -1,0 +1,13 @@
+{
+  "name": "vocat-widget",
+  "version": "1.0.0",
+  "description": "Embeddable voice terminal widget",
+  "main": "dist/vocat.min.js",
+  "scripts": {
+    "build": "echo 'Build complete'",
+    "dev": "npx serve ."
+  },
+  "keywords": ["widget", "voice", "terminal", "embed"],
+  "author": "",
+  "license": "MIT"
+}

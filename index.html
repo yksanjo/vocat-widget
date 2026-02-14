@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VoCAT Widget Demo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    .vocat-widget {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 999999;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    
+    .vocat-widget-toggle {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #58a6ff, #1f6feb);
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      transition: transform 0.2s;
+    }
+    
+    .vocat-widget-toggle:hover {
+      transform: scale(1.1);
+    }
+    
+    .vocat-widget-panel {
+      position: absolute;
+      bottom: 70px;
+      right: 0;
+      width: 360px;
+      height: 480px;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    
+    .vocat-widget-panel.open {
+      display: flex;
+    }
+    
+    .vocat-widget-header {
+      padding: 12px 16px;
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .vocat-widget-header h3 {
+      color: #58a6ff;
+      font-size: 14px;
+    }
+    
+    .vocat-widget-output {
+      flex: 1;
+      padding: 12px;
+      overflow-y: auto;
+      background: #0d1117;
+    }
+    
+    .vocat-widget-line {
+      font-size: 12px;
+      margin-bottom: 4px;
+      color: #8b949e;
+    }
+    
+    .vocat-widget-line.command { color: #58a6ff; }
+    .vocat-widget-line.success { color: #3fb950; }
+    .vocat-widget-line.error { color: #f85149; }
+    
+    .vocat-widget-input-area {
+      padding: 12px;
+      background: #161b22;
+      border-top: 1px solid #30363d;
+      display: flex;
+      gap: 8px;
+    }
+    
+    .vocat-widget-input {
+      flex: 1;
+      padding: 8px 12px;
+      background: #21262d;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      color: #c9d1d9;
+      font-family: inherit;
+      font-size: 12px;
+    }
+    
+    .vocat-widget-input:focus {
+      outline: none;
+      border-color: #58a6ff;
+    }
+    
+    .vocat-widget-btn {
+      padding: 8px 12px;
+      background: #58a6ff;
+      border: none;
+      border-radius: 6px;
+      color: #0d1117;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    
+    .vocat-widget-btn:hover {
+      opacity: 0.9;
+    }
+    
+    .vocat-widget-btn.voice {
+      background: #21262d;
+      color: #c9d1d9;
+    }
+    
+    .vocat-widget-btn.listening {
+      background: #58a6ff;
+      color: #0d1117;
+      animation: pulse 1s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+    
+    /* Themes */
+    .vocat-widget.theme-jarvis {
+      --accent: #58a6ff;
+    }
+    
+    .vocat-widget.theme-peon {
+      --accent: #f0883e;
+    }
+    
+    .vocat-widget.theme-light {
+      --bg: #ffffff;
+      --text: #24292f;
+    }
+  </style>
+</head>
+<body>
+  <h1>Website with VoCAT Widget</h1>
+  <p>Click the microphone button in the bottom right corner</p>
+
+  <div class="vocat-widget" id="vocatWidget">
+    <button class="vocat-widget-toggle" id="vocatToggle">🎤</button>
+    <div class="vocat-widget-panel" id="vocatPanel">
+      <div class="vocat-widget-header">
+        <h3>🎙️ VoCAT Terminal</h3>
+      </div>
+      <div class="vocat-widget-output" id="vocatOutput">
+        <div class="vocat-widget-line">Welcome to VoCAT Widget!</div>
+        <div class="vocat-widget-line">Type a command or use voice input.</div>
+      </div>
+      <div class="vocat-widget-input-area">
+        <button class="vocat-widget-btn voice" id="vocatMic">🎤</button>
+        <input type="text" class="vocat-widget-input" id="vocatInput" placeholder="Enter command...">
+        <button class="vocat-widget-btn" id="vocatRun">Run</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    class VoCATWidget {
+      constructor() {
+        this.panel = document.getElementById('vocatPanel');
+        this.toggle = document.getElementById('vocatToggle');
+        this.input = document.getElementById('vocatInput');
+        this.output = document.getElementById('vocatOutput');
+        this.micBtn = document.getElementById('vocatMic');
+        this.runBtn = document.getElementById('vocatRun');
+        
+        this.setupEvents();
+        this.recognition = null;
+      }
+      
+      setupEvents() {
+        this.toggle.onclick = () => this.togglePanel();
+        this.runBtn.onclick = () => this.runCommand();
+        this.input.onkeypress = (e) => {
+          if (e.key === 'Enter') this.runCommand();
+        };
+        this.micBtn.onclick = () => this.toggleVoice();
+      }
+      
+      togglePanel() {
+        this.panel.classList.toggle('open');
+      }
+      
+      toggleVoice() {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        
+        if (!SpeechRecognition) {
+          this.writeOutput('Voice not supported', 'error');
+          return;
+        }
+        
+        if (this.recognition) {
+          this.recognition.stop();
+          this.recognition = null;
+          this.micBtn.classList.remove('listening');
+          return;
+        }
+        
+        this.recognition = new SpeechRecognition();
+        this.recognition.continuous = true;
+        
+        this.recognition.onresult = (event) => {
+          const transcript = Array.from(event.results)
+            .map(r => r[0].transcript)
+            .join('');
+          
+          if (transcript.toLowerCase().includes('hey vocat')) {
+            this.input.value = transcript.replace(/hey vocat/gi, '').trim();
+            this.runCommand();
+          }
+        };
+        
+        this.recognition.start();
+        this.micBtn.classList.add('listening');
+      }
+      
+      async runCommand() {
+        const cmd = this.input.value.trim();
+        if (!cmd) return;
+        
+        this.writeOutput(`$ ${cmd}`, 'command');
+        this.input.value = '';
+        
+        // Simulate execution (connect to API for real)
+        setTimeout(() => {
+          const responses = {
+            'git status': 'On branch main\nNo changes',
+            'npm test': '✓ All tests passed!',
+            'npm run build': 'Build complete!'
+          };
+          const output = responses[cmd] || `Executed: ${cmd}`;
+          this.writeOutput(output, 'success');
+          this.speak('Command completed');
+        }, 500);
+      }
+      
+      writeOutput(text, type = '') {
+        const line = document.createElement('div');
+        line.className = `vocat-widget-line ${type}`;
+        line.textContent = text;
+        this.output.appendChild(line);
+        this.output.scrollTop = this.output.scrollHeight;
+      }
+      
+      speak(text) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        speechSynthesis.speak(utterance);
+      }
+    }
+    
+    const vocat = new VoCATWidget();
+  </script>
+</body>
+</html>
